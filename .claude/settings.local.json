@@ -5,7 +5,8 @@
       "WebFetch(domain:www.adafruit.com)",
       "Bash(cat:*)",
       "Bash(find:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
