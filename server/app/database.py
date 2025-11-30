@@ -7,7 +7,7 @@ Provides database connection handling for both MariaDB and SQLite.
 import os
 import configparser
 from typing import Generator
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import Pool
 from contextlib import contextmanager
@@ -173,7 +173,7 @@ class Database:
         """
         try:
             with self.session_scope() as session:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
             return True
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
