@@ -27,6 +27,7 @@ Firmware for ESP32-based sensor devices that send data to Local Feather server.
 
 **Out of the box**:
 - BME280 (temperature, humidity, pressure) via I2C
+- AHT20 (temperature, humidity) via I2C - Adafruit #4566
 
 **Easy to add** (see examples):
 - DHT22 (temperature, humidity)
@@ -39,6 +40,15 @@ Firmware for ESP32-based sensor devices that send data to Local Feather server.
 ```
 BME280    →    ESP32
 VCC       →    3.3V
+GND       →    GND
+SDA       →    GPIO 21
+SCL       →    GPIO 22
+```
+
+**AHT20 Sensor** (Adafruit #4566):
+```
+AHT20     →    ESP32
+VIN       →    3.3V (or 5V)
 GND       →    GND
 SDA       →    GPIO 21
 SCL       →    GPIO 22
@@ -295,6 +305,30 @@ curl http://192.168.1.100:5000/api/health
 - Increase READING_INTERVAL to reduce load
 
 ## Adding Custom Sensors
+
+### Using AHT20 Instead of BME280
+
+The firmware includes support for the **AHT20 sensor** (Adafruit #4566) as an alternative to BME280.
+
+**When to use AHT20**:
+- You only need temperature + humidity (no pressure)
+- You want better humidity accuracy (±2% vs ±3%)
+- You prefer STEMMA QT / Qwiic connectors for tool-free wiring
+
+**Quick Start**:
+
+See `examples/aht20/aht20_example.cpp` for complete code.
+
+The AHT20 library is already included in `platformio.ini`, so you can:
+1. Copy the example code into your main.cpp
+2. Change sensor initialization from BME280 to AHT20
+3. Upload and run!
+
+**Key differences from BME280**:
+- Fixed I2C address (0x38) - cannot be changed
+- No pressure readings (set to 0.0 in code)
+- Slightly faster readings (~80ms vs ~40ms)
+- Lower power consumption in sleep mode
 
 ### Example: DHT22 Temperature/Humidity Sensor
 
