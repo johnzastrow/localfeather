@@ -12,7 +12,9 @@
       "Bash(uv pip install:*)",
       "Bash(uv venv:*)",
       "Bash(source:*)",
-      "Bash(python database/seed_data.py:*)"
+      "Bash(python database/seed_data.py:*)",
+      "Bash(python run.py:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
