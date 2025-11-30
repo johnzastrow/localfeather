@@ -372,14 +372,26 @@ reading["unit"] = "V";
 
 ## OTA Updates
 
-**Currently**: OTA check is implemented but update download is not yet complete.
+**✅ FULLY IMPLEMENTED!**
 
-**Manual update procedure**:
-1. Build new firmware
-2. Connect ESP32 via USB
-3. Upload new firmware
+Over-the-air firmware updates are now fully functional:
 
-**Future v2.0**: Full OTA update support via server upload.
+**How to use**:
+1. Build new firmware (`pio run`)
+2. Upload `.pio/build/esp32dev/firmware.bin` to server via web UI
+3. Devices automatically check for updates every 6 hours
+4. Updates download and install automatically
+5. Devices reboot to new firmware
+
+**See**: [OTA Update Guide](docs/OTA_GUIDE.md) for complete documentation
+
+**Features**:
+- ✅ Automatic update detection
+- ✅ Progress monitoring via serial
+- ✅ Automatic rollback on failure
+- ✅ Safe dual-partition updates
+- ✅ LED status indicators
+- ✅ Zero downtime (devices stay connected until reboot)
 
 ## Advanced Configuration
 
