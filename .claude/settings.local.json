@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(tree:*)",
-      "WebFetch(domain:www.adafruit.com)"
+      "WebFetch(domain:www.adafruit.com)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

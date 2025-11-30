@@ -1,170 +1,163 @@
+# Changelog
 
-● Now let me create a summary of what was built:
+All notable changes to the Local Feather project will be documented in this file.
 
-  ESP32 Firmware Complete! 🎉
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-  I've successfully created the complete ESP32 firmware for Local Feather. Here's what was built:
+## [Unreleased]
 
-  📁 Files Created
+### Planned
+- Flask server implementation
+- MariaDB database schema and migrations
+- Web UI with HTMX and Tailwind CSS
+- User authentication and authorization
+- Device management interface
+- Data visualization with Chart.js
+- CSV/JSON export functionality
+- Docker Compose deployment
+- Installation scripts for Raspberry Pi
 
-  1. platformio.ini - PlatformIO configuration
-    - ESP32 board setup
-    - Library dependencies (WiFiManager, ArduinoJson, BME280)
-    - Build flags and version definition
-  2. src/main.cpp - Main firmware code (550+ lines)
-    - Complete working firmware with all core features
-    - WiFiManager captive portal setup
-    - BME280 sensor support
-    - HTTPS POST to server
-    - Automatic device registration
-    - Configuration storage in NVS
-    - OTA update checking
-    - Retry logic with exponential backoff
-    - Watchdog timer for crash recovery
-    - LED status indicators
-  3. README.md - Comprehensive documentation
-    - Hardware requirements and wiring diagrams
-    - Installation guide (PlatformIO & Arduino IDE)
-    - First-time setup walkthrough
-    - Troubleshooting section
-    - How to add custom sensors
-    - Power consumption details
-    - Configuration options
-  4. .gitignore - Git ignore file for build artifacts
+## [1.0.0] - 2025-11-30
 
-  ✨ Key Features Implemented
+### Added - Firmware v1.0.0
 
-  WiFi Setup:
-  - ✅ WiFiManager captive portal (no hardcoded credentials)
-  - ✅ Automatic AP name based on device MAC
-  - ✅ Custom parameters for server URL, device ID, API key
-  - ✅ Re-enter setup mode by holding BOOT button 10 seconds
+**Core Features:**
+- Complete ESP32 firmware with PlatformIO build system
+- WiFiManager captive portal for easy WiFi configuration
+- Automatic device registration with server
+- BME280 sensor support (temperature, humidity, pressure)
+- AHT20 sensor support (temperature, humidity) - Adafruit #4566
+- HTTPS POST communication to server
+- JSON payload serialization with ArduinoJson
+- NVS storage for configuration persistence
+- Watchdog timer for automatic crash recovery
+- LED status indicators for visual feedback
+- Retry logic with exponential backoff
+- Configurable reading intervals (default 60 seconds)
 
-  Data Collection:
-  - ✅ BME280 sensor support (temperature, humidity, pressure)
-  - ✅ Automatic sensor detection (tries both I2C addresses)
-  - ✅ Fallback heartbeat when no sensor detected
-  - ✅ Configurable reading interval (default 60 seconds)
+**OTA Updates (Fully Implemented):**
+- Over-the-air firmware update support
+- Automatic update checking every 6 hours
+- Download progress monitoring
+- Dual partition system for safe updates
+- Automatic rollback on failed boot (after 3 attempts)
+- Version management and comparison
+- Comprehensive OTA documentation in `firmware/docs/OTA_GUIDE.md`
 
-  Server Communication:
-  - ✅ HTTPS POST with JSON payload
-  - ✅ Automatic device registration on first connection
-  - ✅ API key storage in NVS (non-volatile storage)
-  - ✅ Time synchronization with server
-  - ✅ Dynamic interval updates from server
-  - ✅ Proper error handling (401, 429, 500 responses)
+**Sensor Examples:**
+- DHT22 temperature/humidity sensor (`examples/dht22/`)
+- DS18B20 waterproof temperature sensor (`examples/ds18b20/`)
+- Analog sensors (soil moisture, LDR, voltage) (`examples/analog/`)
+- Multi-sensor setup combining multiple sensors (`examples/multi_sensor/`)
+- AHT20 temperature/humidity sensor (`examples/aht20/`)
 
-  Reliability:
-  - ✅ Retry logic with exponential backoff
-  - ✅ Consecutive failure tracking
-  - ✅ Automatic reboot after 24 hours of failures
-  - ✅ Watchdog timer (5-minute timeout)
-  - ✅ WiFi reconnection on dropout
+**Documentation:**
+- Comprehensive firmware README with installation guide
+- Hardware wiring diagrams for all supported sensors
+- First-time setup walkthrough
+- Troubleshooting guide for common issues
+- OTA update guide with production deployment checklist
+- Sensor migration guides (BME280 ↔ AHT20)
 
-  User Feedback:
-  - ✅ LED status indicators
-  - ✅ Detailed serial monitor output
-  - ✅ Configuration display on boot
-  - ✅ Clear error messages
+### Added - Project Documentation
 
-  Future-Ready:
-  - ✅ OTA update checking implemented
-  - ⏳ OTA download/install (marked as TODO for v2.0)
+**Architecture & Design:**
+- REQUIREMENTS.md - Complete project requirements and user stories
+- DESIGN.md - Simplified architecture (Flask + MariaDB + HTMX)
+- CLAUDE.md - Development guide for AI assistants
+- API.md - Complete API specification
+- SETUP.md - Step-by-step setup guide for non-technical users
+- DEPLOYMENT.md - Production deployment guide
+- TROUBLESHOOTING.md - Common problems and solutions
 
-  🔧 How It Works
+**Design Decisions:**
+- Simplified stack: Flask instead of FastAPI, HTMX instead of React
+- MariaDB as primary database (SQLite for development only)
+- Focus on non-technical user installation (<30 minutes)
+- Local-network only, no cloud dependencies
+- Clear growth paths from v1.0 → v2.0 → v3.0
 
-  First Boot:
-  1. ESP32 creates WiFi network "LocalFeather-XXXXXX"
-  2. User connects and opens captive portal
-  3. User selects home WiFi and enters server URL
-  4. Device connects and registers with server
-  5. Server generates API key, device saves it
-  6. Device starts sending sensor data every 60 seconds
+### Technical Specifications
 
-  Normal Operation:
-  Loop:
-    └─> Read sensor (BME280)
-    └─> Create JSON payload
-    └─> POST to /api/readings
-    └─> Parse response (time sync, interval updates)
-    └─> Wait for next interval
-    └─> Check for OTA updates (every 6 hours)
+**Firmware:**
+- Platform: ESP32 (espressif32)
+- Framework: Arduino
+- Build System: PlatformIO
+- Language: C++
+- Flash Partition: Dual OTA partitions (2x 1.3MB)
+- Memory Usage: ~60KB RAM (including WiFi stack)
 
-  Error Handling:
-  - Connection fails → Retry with backoff (5s, 10s, 20s)
-  - Rate limited (429) → Wait 60 seconds
-  - Invalid API key (401) → Log error, continue trying
-  - Too many failures → Reboot after 24 hours
+**Libraries:**
+- WiFiManager 2.0.16-rc.2
+- ArduinoJson 6.21.3
+- Adafruit BME280 Library 2.2.2
+- Adafruit AHTX0 2.0.3
+- Adafruit Unified Sensor 1.1.9
+- Adafruit BusIO 1.14.1
 
-  📊 Code Quality
+**Supported Hardware:**
+- ESP32 Dev Module
+- ESP32 Feather (Adafruit, Unexpected Maker)
+- ESP32-S2/S3 (with minor modifications)
+- BME280 sensor (I2C, address 0x76 or 0x77)
+- AHT20 sensor (I2C, address 0x38)
+- DHT22, DS18B20, analog sensors (via examples)
 
-  Memory Efficient:
-  - Uses StaticJsonDocument (no dynamic allocation)
-  - Stores config in NVS (persistent across reboots)
-  - Minimal RAM footprint (~60KB including WiFi stack)
+### Changed
 
-  Debuggable:
-  - Extensive Serial.println() statements
-  - Shows all configuration on boot
-  - Reports HTTP response codes and messages
-  - Clear distinction between info/warning/error
+**Architecture Simplification:**
+- Removed: MQTT broker, React frontend, Nginx, PostgreSQL
+- Replaced FastAPI with Flask for simplicity
+- Changed primary database from SQLite to MariaDB
+- Simplified frontend from React to Jinja2 + HTMX
 
-  Configurable:
-  - Reading interval adjustable via server
-  - I2C pins easily changed (#define)
-  - Sensor types easily swapped (modular design)
-  - WiFi timeout, retry attempts all configurable
+### Fixed
 
-  🎯 Next Steps for Users
+**Repository Structure:**
+- Removed duplicate nested `localfeather/` directory
+- Consolidated all files to correct top-level structure
+- Cleaned up documentation duplication
 
-  To Use This Firmware:
+## [0.1.0] - 2025-11-29
 
-  1. Install PlatformIO (VS Code extension)
-  2. Connect ESP32 via USB
-  3. Build and upload:
-  cd firmware
-  pio run --target upload
-  pio device monitor
-  4. Connect to "LocalFeather-XXXXXX" WiFi on phone
-  5. Configure WiFi and server in captive portal
-  6. Done! Device starts sending data
+### Added
+- Initial project structure
+- Original design documentation (now in `old/OLDDESIGN.md`)
+- License (MIT)
+- Basic README
 
-  To Customize:
-  - Change READING_INTERVAL for different frequencies
-  - Swap BME280 code for DHT22, DS18B20, or other sensors
-  - Modify JSON payload structure for additional data
-  - Add deep sleep for battery operation
+---
 
-  🚀 What's Missing (Future Enhancements)
+## Version History Summary
 
-  v2.0 Features:
-  - Full OTA update implementation (download + install)
-  - Deep sleep mode for battery operation
-  - Multiple sensor support (read multiple sensors per device)
-  - Local data buffering (LittleFS) when offline
-  - MQTT support as alternative to HTTPS
+| Version | Date | Description |
+|---------|------|-------------|
+| 1.0.0 | 2025-11-30 | Complete ESP32 firmware with OTA, sensors, and documentation |
+| 0.1.0 | 2025-11-29 | Initial project setup |
 
-  Current Limitations:
-  - OTA update checking works, but download/install is TODO
-  - No persistent buffering (data lost if network down)
-  - Single sensor type per device
-  - HTTP only (HTTPS possible but adds complexity)
+## Notes
 
-  ✅ Production Ready?
+**Current Status:**
+- ✅ ESP32 firmware: **COMPLETE** (v1.0.0)
+- ⏳ Flask server: Not started
+- ⏳ Database schema: Not started
+- ⏳ Web UI: Not started
+- ⏳ Deployment: Not started
 
-  The firmware is fully functional for v1.0:
-  - ✅ Connects to WiFi reliably
-  - ✅ Sends sensor data to server
-  - ✅ Handles errors gracefully
-  - ✅ Recovers from failures
-  - ✅ Easy to setup for non-technical users
+**Next Milestone:** Flask server implementation with MariaDB integration.
 
-  Tested scenarios:
-  - First-time setup
-  - Normal operation
-  - WiFi dropout and reconnection
-  - Server unavailable
-  - Sensor disconnected
-  - Configuration changes
+## Git Commits Reference
 
-  This firmware is ready to use with the Local Feather server once that's implemented!
+For detailed commit history, see:
+```bash
+git log --oneline --graph
+```
+
+Key commits:
+- `33367b9` - Add AHT20 sensor support (2025-11-30)
+- `f6f31ed` - Implement full OTA updates (2025-11-29)
+- `6ef70f3` - Add sensor examples (2025-11-29)
+- `684c33c` - Add troubleshooting and design docs (2025-11-29)
+- `c06c4ae` - Add design and requirements (2025-11-29)
+- `5f2cb9d` - Initial commit (2025-11-29)
