@@ -543,20 +543,35 @@ void checkForOTAUpdate() {
     httpUpdate.onError([](int err) {
         Serial.printf("\n❌ Update failed: Error %d\n", err);
         switch(err) {
-            case HTTP_UPDATE_FAILED_ERROR:
-                Serial.println("   HTTP update failed");
-                break;
-            case HTTP_UPDATE_FAILED_SERVER_ERROR:
-                Serial.println("   Server error");
-                break;
-            case HTTP_UPDATE_FAILED_NO_UPDATE:
-                Serial.println("   No update available");
-                break;
-            case HTTP_UPDATE_FAILED_NOT_ENOUGH_SPACE:
+            case HTTP_UE_TOO_LESS_SPACE:
                 Serial.println("   Not enough space for update");
                 break;
+            case HTTP_UE_SERVER_NOT_REPORT_SIZE:
+                Serial.println("   Server did not report size");
+                break;
+            case HTTP_UE_SERVER_FILE_NOT_FOUND:
+                Serial.println("   Firmware file not found (404)");
+                break;
+            case HTTP_UE_SERVER_FORBIDDEN:
+                Serial.println("   Server access forbidden (403)");
+                break;
+            case HTTP_UE_SERVER_WRONG_HTTP_CODE:
+                Serial.println("   Wrong HTTP response code");
+                break;
+            case HTTP_UE_SERVER_FAULTY_MD5:
+                Serial.println("   MD5 checksum mismatch");
+                break;
+            case HTTP_UE_BIN_VERIFY_HEADER_FAILED:
+                Serial.println("   Binary verification failed");
+                break;
+            case HTTP_UE_BIN_FOR_WRONG_FLASH:
+                Serial.println("   Binary for wrong flash type");
+                break;
+            case HTTP_UE_NO_PARTITION:
+                Serial.println("   No partition available");
+                break;
             default:
-                Serial.println("   Unknown error");
+                Serial.printf("   HTTP error or unknown: %d\n", err);
         }
     });
 

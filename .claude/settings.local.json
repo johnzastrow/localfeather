@@ -14,7 +14,9 @@
       "Bash(source:*)",
       "Bash(python database/seed_data.py:*)",
       "Bash(python run.py:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(pio run:*)",
+      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe run:*)"
     ],
     "deny": [],
     "ask": []
