@@ -16,7 +16,14 @@
       "Bash(python run.py:*)",
       "Bash(curl:*)",
       "Bash(pio run:*)",
-      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe run:*)"
+      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe run:*)",
+      "Bash(powershell.exe -Command:*)",
+      "Bash(cmd.exe /c \"mode\")",
+      "Bash(ip addr:*)",
+      "Bash(cmd.exe /c \"ipconfig\")",
+      "Bash(pip freeze:*)",
+      "Bash(uv pip freeze:*)",
+      "Bash(requirements.txt)"
     ],
     "deny": [],
     "ask": []

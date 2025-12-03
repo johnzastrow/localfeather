@@ -8,7 +8,7 @@
  * - HTTPS POST to send sensor readings
  * - OTA firmware updates
  * - Automatic retry with exponential backoff
- * - BME280 sensor support (temperature, humidity, pressure)
+ * - AHT20 sensor support (temperature, humidity)
  *
  * Version: 1.0.0
  */
@@ -22,7 +22,7 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>  // change for different sensors
+#include <Adafruit_AHTX0.h>
 #include <esp_task_wdt.h>
 #include <esp_ota_ops.h>
 
@@ -43,7 +43,7 @@ const char* FIRMWARE_VERSION = VERSION;
 // Global objects
 WiFiManager wifiManager;
 Preferences preferences;
-Adafruit_BME280 bme;
+Adafruit_AHTX0 aht;
 HTTPClient http;
 
 // Configuration storage
@@ -65,8 +65,8 @@ void setupWiFi();
 void loadConfig();
 void saveConfig();
 void setupSensor();
-bool readSensor(float &temp, float &humidity, float &pressure);
-bool sendReadings(float temp, float humidity, float pressure);
+bool readSensor(float &temp, float &humidity);
+bool sendReadings(float temp, float humidity);
 void checkForOTAUpdate();
 void handleConfigPortal();
 void blinkLED(int times, int delayMs);
@@ -125,16 +125,15 @@ void loop() {
         digitalWrite(LED_PIN, HIGH);
 
         if (sensorAvailable) {
-            float temp, humidity, pressure;
+            float temp, humidity;
 
-            if (readSensor(temp, humidity, pressure)) {
+            if (readSensor(temp, humidity)) {
                 Serial.println("\n--- Sensor Reading ---");
                 Serial.printf("Temperature: %.2f °C\n", temp);
                 Serial.printf("Humidity: %.2f %%\n", humidity);
-                Serial.printf("Pressure: %.2f hPa\n", pressure);
 
                 // Send to server
-                if (sendReadings(temp, humidity, pressure)) {
+                if (sendReadings(temp, humidity)) {
                     consecutiveFailures = 0;
                     blinkLED(1, 100); // Quick blink = success
                 } else {
@@ -154,7 +153,7 @@ void loop() {
         } else {
             Serial.println("⚠ No sensor detected - sending dummy data");
             // Send dummy data to show device is alive
-            sendReadings(0.0, 0.0, 0.0);
+            sendReadings(0.0, 0.0);
         }
 
         digitalWrite(LED_PIN, LOW);
@@ -203,13 +202,28 @@ void setupWiFi() {
     // Custom AP name based on device ID
     String apName = "LocalFeather-" + getDeviceId();
 
-    // Try to connect to saved WiFi
-    Serial.printf("Connecting to WiFi (AP: %s)...\n", apName.c_str());
+    // If server URL is not configured, force config portal
+    bool forcePortal = (strlen(config.serverUrl) == 0);
 
-    if (!wifiManager.autoConnect(apName.c_str())) {
-        Serial.println("❌ Failed to connect - rebooting...");
-        delay(3000);
-        ESP.restart();
+    if (forcePortal) {
+        Serial.println("\n⚠ Server URL not configured - starting configuration portal");
+        Serial.printf("Connect to WiFi AP: %s\n", apName.c_str());
+        Serial.println("Then open browser to 192.168.4.1\n");
+
+        if (!wifiManager.startConfigPortal(apName.c_str())) {
+            Serial.println("❌ Failed to configure - rebooting...");
+            delay(3000);
+            ESP.restart();
+        }
+    } else {
+        // Try to connect to saved WiFi
+        Serial.printf("Connecting to WiFi (AP: %s)...\n", apName.c_str());
+
+        if (!wifiManager.autoConnect(apName.c_str())) {
+            Serial.println("❌ Failed to connect - rebooting...");
+            delay(3000);
+            ESP.restart();
+        }
     }
 
     Serial.println("✓ WiFi connected!");
@@ -282,29 +296,18 @@ void saveConfig() {
 }
 
 /**
- * Setup sensor (BME280)
+ * Setup sensor (AHT20)
  */
 void setupSensor() {
-    Serial.println("Initializing BME280 sensor...");
+    Serial.println("Initializing AHT20 sensor...");
 
-    unsigned status = bme.begin(0x76); // Try address 0x76
-    if (!status) {
-        status = bme.begin(0x77); // Try address 0x77
-    }
-
-    if (status) {
-        Serial.println("✓ BME280 sensor found!");
+    if (aht.begin()) {
+        Serial.println("✓ AHT20 sensor found!");
         sensorAvailable = true;
-
-        // Configure sensor for indoor monitoring
-        bme.setSampling(Adafruit_BME280::MODE_FORCED,
-                       Adafruit_BME280::SAMPLING_X1, // temperature
-                       Adafruit_BME280::SAMPLING_X1, // pressure
-                       Adafruit_BME280::SAMPLING_X1, // humidity
-                       Adafruit_BME280::FILTER_OFF);
     } else {
-        Serial.println("⚠ BME280 sensor not found");
+        Serial.println("⚠ AHT20 sensor not found");
         Serial.println("  Check wiring: SDA=GPIO21, SCL=GPIO22");
+        Serial.println("  I2C address should be 0x38");
         Serial.println("  Device will continue without sensor");
         sensorAvailable = false;
     }
@@ -313,20 +316,19 @@ void setupSensor() {
 /**
  * Read sensor values
  */
-bool readSensor(float &temp, float &humidity, float &pressure) {
+bool readSensor(float &temp, float &humidity) {
     if (!sensorAvailable) {
         return false;
     }
 
-    // Trigger measurement
-    bme.takeForcedMeasurement();
+    sensors_event_t humidityEvent, tempEvent;
+    aht.getEvent(&humidityEvent, &tempEvent);
 
-    temp = bme.readTemperature();
-    humidity = bme.readHumidity();
-    pressure = bme.readPressure() / 100.0F; // Convert Pa to hPa
+    temp = tempEvent.temperature;
+    humidity = humidityEvent.relative_humidity;
 
     // Check for valid readings
-    if (isnan(temp) || isnan(humidity) || isnan(pressure)) {
+    if (isnan(temp) || isnan(humidity)) {
         return false;
     }
 
@@ -336,7 +338,7 @@ bool readSensor(float &temp, float &humidity, float &pressure) {
 /**
  * Send readings to server via HTTPS POST
  */
-bool sendReadings(float temp, float humidity, float pressure) {
+bool sendReadings(float temp, float humidity) {
     if (strlen(config.serverUrl) == 0) {
         Serial.println("❌ Server URL not configured");
         return false;
@@ -366,13 +368,6 @@ bool sendReadings(float temp, float humidity, float pressure) {
         reading2["value"] = humidity;
         reading2["unit"] = "%";
         reading2["timestamp"] = time(nullptr);
-
-        // Pressure
-        JsonObject reading3 = readings.createNestedObject();
-        reading3["sensor"] = "pressure";
-        reading3["value"] = pressure;
-        reading3["unit"] = "hPa";
-        reading3["timestamp"] = time(nullptr);
     } else {
         // Send heartbeat even without sensor
         JsonObject reading1 = readings.createNestedObject();
