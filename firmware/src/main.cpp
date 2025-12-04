@@ -31,8 +31,8 @@ const char* FIRMWARE_VERSION = VERSION;
 
 // Pin definitions
 #define LED_PIN 2              // Built-in LED for status indication
-#define I2C_SDA 21             // I2C Data pin
-#define I2C_SCL 22             // I2C Clock pin
+#define I2C_SDA 3              // I2C Data pin (STEMMA QT on ESP32 Feather V2)
+#define I2C_SCL 4              // I2C Clock pin (STEMMA QT on ESP32 Feather V2)
 
 // Configuration
 #define READING_INTERVAL 60000  // Default: 60 seconds between readings
@@ -65,6 +65,7 @@ void setupWiFi();
 void saveWifiCallback();
 void loadConfig();
 void saveConfig();
+void scanI2C();
 void setupSensor();
 bool readSensor(float &temp, float &humidity);
 bool sendReadings(float temp, float humidity);
@@ -343,17 +344,47 @@ void saveConfig() {
 }
 
 /**
+ * Scan I2C bus for devices
+ */
+void scanI2C() {
+    Serial.println("\nScanning I2C bus...");
+    byte error, address;
+    int devicesFound = 0;
+
+    for (address = 1; address < 127; address++) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+
+        if (error == 0) {
+            Serial.printf("  ✓ Device found at address 0x%02X\n", address);
+            devicesFound++;
+        }
+    }
+
+    if (devicesFound == 0) {
+        Serial.println("  ⚠ No I2C devices found");
+        Serial.println("  Check wiring and pull-up resistors");
+    } else {
+        Serial.printf("  Found %d device(s)\n", devicesFound);
+    }
+    Serial.println();
+}
+
+/**
  * Setup sensor (AHT20)
  */
 void setupSensor() {
     Serial.println("Initializing AHT20 sensor...");
+
+    // Scan I2C bus first to help with debugging
+    scanI2C();
 
     if (aht.begin()) {
         Serial.println("✓ AHT20 sensor found!");
         sensorAvailable = true;
     } else {
         Serial.println("⚠ AHT20 sensor not found");
-        Serial.println("  Check wiring: SDA=GPIO21, SCL=GPIO22");
+        Serial.println("  Check STEMMA QT connection: SDA=GPIO3, SCL=GPIO4");
         Serial.println("  I2C address should be 0x38");
         Serial.println("  Device will continue without sensor");
         sensorAvailable = false;
