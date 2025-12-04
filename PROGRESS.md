@@ -1,8 +1,8 @@
 # LocalFeather - Development Progress
 
-**Last Updated:** 2025-12-04 02:50 EST
+**Last Updated:** 2025-12-04 08:00 EST
 
-## Current Status: API Key Buffer Fix In Progress ✅
+## Current Status: System Fully Operational ✅
 
 ### What We've Accomplished Today
 
@@ -27,41 +27,57 @@
    - Added device approval workflow
    - Fixed table name case-sensitivity issues (lowercase `devices` not `Devices`)
 
-5. 🔧 **Currently Fixing: API Key Truncation Bug**
+5. ✅ **Fixed API Key Truncation Bug**
    - **Problem:** API key buffer was 64 bytes, but 64-char hex string needs 65 bytes (+ null terminator)
    - **Symptom:** API key gets truncated from `...087f` to `...087`, causing 401 errors
    - **Fix Applied:** Increased buffer size from 64 to 128 bytes in:
      - `Config` struct (`char apiKey[128]`)
      - `WiFiManagerParameter` initialization
-   - **Status:** Code fixed, needs testing
+   - **Status:** ✅ FIXED - Device authenticating successfully with full 64-char API key
 
-### Next Steps (Resume Here)
+6. ✅ **Flask Server Deployment**
+   - Created systemd service file at `/home/jcz/Github/localfeather/server/localfeather.service`
+   - Fixed service configuration: `app:app` → `'app:create_app()'` (factory pattern)
+   - Fixed venv path: `venv` → `.venv`
+   - **Status:** ✅ Server running on 192.168.1.234:5000 with Gunicorn (4 workers)
 
-1. **Upload Fixed Firmware (IMMEDIATE):**
-   ```bash
-   # Delete device from database
-   mysql -ujcz -pyub.miha -h192.168.1.234 localfeather -e "DELETE FROM devices WHERE device_id='esp32-3323b0';"
+7. ✅ **Fixed I2C Pin Configuration for ESP32 Feather V2**
+   - **Problem:** Firmware was using GPIO 21/22 (generic ESP32) instead of GPIO 3/4 (STEMMA QT)
+   - **Symptom:** AHT20 sensor not detected on I2C bus
+   - **Fix Applied:** Changed I2C_SDA to GPIO 3, I2C_SCL to GPIO 4 in `main.cpp`
+   - Added I2C scanner function `scanI2C()` for debugging
+   - **Status:** ✅ FIXED
 
-   # Close serial monitor, then upload
-   cd firmware
-   pio run --target upload
-   pio device monitor
-   ```
+8. ✅ **AHT20 Sensor Working**
+   - **Root Cause:** Poor connection on first I2C connector of AHT20
+   - **Solution:** Switched STEMMA QT cable to second connector on AHT20
+   - **Status:** ✅ Transmitting real sensor data (Temperature: 23.82°C, Humidity: 28.62%)
+   - Device successfully reading and transmitting data every 60 seconds
 
-2. **Verify API Key Saved Correctly:**
-   - After registration, check that printed API key is **64 characters** (not 63)
-   - Example: `456993da455ac7ab677d1f17fd655d1072a6ef777573c2d9592160ab6ecf087f`
-   - Should NOT be truncated at the end
+### System Status
 
-3. **Approve Device:**
-   ```bash
-   mysql -ujcz -pyub.miha -h192.168.1.234 localfeather -e "UPDATE devices SET approved=1 WHERE device_id='esp32-3323b0';"
-   ```
+**ESP32 Device:** `esp32-3323b0`
+- ✅ Connected to WiFi (bobby24)
+- ✅ Registered with server
+- ✅ API key authentication working
+- ✅ AHT20 sensor detected and reading
+- ✅ Transmitting data every 60 seconds
+- ✅ Server responding with HTTP 200
 
-4. **Verify Successful Data Submission:**
-   - Wait 60 seconds for next reading cycle
-   - Should see: `"status": "ok"` and `"approved": true`
-   - No more 401 errors
+**Flask Server:** 192.168.1.234:5000
+- ✅ Systemd service running
+- ✅ Gunicorn with 4 workers
+- ✅ Receiving and storing sensor data
+- ✅ MariaDB connection healthy
+
+**Latest Sensor Readings:**
+- Temperature: 23.82°C
+- Humidity: 28.62%
+- Last updated: 2025-12-04 07:47:53
+
+### Next Steps
+
+The core system is now fully operational. Ready to move on to next features:
 
 ---
 
@@ -118,27 +134,26 @@ See `docs/DESIGN.md` section "Web UI Design" for wireframes and routes
 
 ## Known Issues
 
-### 1. AHT20 Sensor Not Detected
-**Symptom:** `⚠ AHT20 sensor not found`
+### ~~1. AHT20 Sensor Not Detected~~ ✅ RESOLVED
+**Was:** `⚠ AHT20 sensor not found`
 
-**Not Critical:** Firmware sends dummy data (0.0, 0.0) to keep device alive
+**Root Cause:**
+1. Incorrect I2C pins (GPIO 21/22 instead of GPIO 3/4 for ESP32 Feather V2)
+2. Poor connection on first I2C connector of AHT20 sensor
 
-**To Fix Later:**
-- Check wiring (SDA=GPIO21, SCL=GPIO22, VCC=3.3V, GND)
-- Verify I2C address is 0x38
-- Try different I2C pull-up resistors if needed
+**Resolution:**
+- Fixed I2C pin configuration to GPIO 3/4 (STEMMA QT pins)
+- Switched STEMMA QT cable to second connector on AHT20
+- Sensor now working and transmitting real data
 
-### 2. Connection Reset Errors (Intermittent)
-**Symptom:** `errno: 104, "Connection reset by peer"`
+### ~~2. Connection Reset Errors~~ ✅ RESOLVED
+**Was:** `errno: 104, "Connection reset by peer"`
 
-**Cause:** Server closing connection during POST
+**Root Cause:** Flask development server (Werkzeug) not running
 
-**Status:** Happens occasionally, ESP32 retries successfully
-
-**To Investigate:**
-- Check Flask server logs during reset
-- May be related to Werkzeug dev server (not production-ready)
-- Consider switching to Gunicorn for production
+**Resolution:**
+- Deployed Flask server as systemd service with Gunicorn
+- Server now stable and handling requests reliably
 
 ---
 
@@ -212,6 +227,14 @@ mysql -ujcz -pyub.miha -h192.168.1.234 localfeather -e "DELETE FROM devices WHER
 3. Added WiFiManager save callback
 4. Added JSON parse error logging
 5. Increased API key buffer (64→128)
+6. Fixed I2C pin configuration (GPIO 21/22 → GPIO 3/4 for ESP32 Feather V2 STEMMA QT)
+7. Added I2C scanner function `scanI2C()` for debugging
+
+### Server (`/home/jcz/Github/localfeather/server/`)
+1. Created systemd service file `localfeather.service`
+2. Configured Gunicorn with 4 workers
+3. Set up logging to `/home/jcz/localfeather/logs/`
+4. Fixed application factory pattern reference: `'app:create_app()'`
 
 ### Documentation
 1. `docs/TROUBLESHOOTING.md`
@@ -229,20 +252,24 @@ mysql -ujcz -pyub.miha -h192.168.1.234 localfeather -e "DELETE FROM devices WHER
 
 ## Testing Checklist
 
-**After uploading fixed firmware:**
+**System Verification:** ✅ ALL TESTS PASSED
 
-- [ ] ESP32 boots and shows config portal
-- [ ] Configure via web UI at 192.168.4.1
-- [ ] See "WiFiManager: Config saved callback triggered"
-- [ ] See "✓ Configuration saved to NVS"
-- [ ] ESP32 reboots and connects to WiFi
-- [ ] Registers with server (200 response)
-- [ ] API key printed is **64 characters** (not truncated)
-- [ ] See "✓ Device registered - API key saved"
-- [ ] Approve device in database
-- [ ] Next POST gets 200 with "status": "ok"
-- [ ] No more 401 errors
-- [ ] Readings persist across ESP32 reboots
+- ✅ ESP32 boots and shows config portal
+- ✅ Configure via web UI at 192.168.4.1
+- ✅ See "WiFiManager: Config saved callback triggered"
+- ✅ See "✓ Configuration saved to NVS"
+- ✅ ESP32 reboots and connects to WiFi
+- ✅ Registers with server (200 response)
+- ✅ API key printed is **64 characters** (not truncated)
+- ✅ See "✓ Device registered - API key saved"
+- ✅ Approve device in database
+- ✅ Next POST gets 200 with "status": "ok"
+- ✅ No more 401 errors
+- ✅ Readings persist across ESP32 reboots
+- ✅ AHT20 sensor detected on I2C bus
+- ✅ Real sensor data transmitted (not dummy 0.0 values)
+- ✅ Flask server running as systemd service
+- ✅ Database receiving and storing readings
 
 ---
 
@@ -266,18 +293,30 @@ mysql -ujcz -pyub.miha -h192.168.1.234 localfeather -e "DELETE FROM devices WHER
 
 ---
 
-## Notes for Tomorrow
+## Next Development Phase
 
-1. **Test the API key buffer fix first** - This should resolve all 401 errors
-2. **If successful, start building the web UI** - Much easier than terminal commands
-3. **Consider adding password hashing** - Current plaintext storage is insecure
-4. **Fix the AHT20 sensor detection** - Check wiring and I2C communication
-5. **Test OTA updates** - Haven't tested this feature yet
+The core ESP32 sensor system is now fully operational. Ready for next features:
 
-**Web UI Priority Features:**
-1. Device approval button (replace SQL commands)
-2. Device list with status
-3. Regenerate API key button
-4. View readings chart
+### High Priority: Web UI Development
+According to CLAUDE.md, the next major feature is building the Flask web interface:
 
-**Good luck tomorrow! 🚀**
+**Priority Features:**
+1. Dashboard page - Device list with online/offline status
+2. Device approval button (replace SQL commands)
+3. View sensor readings with charts
+4. Device management (rename, delete, regenerate API key)
+5. Authentication (Flask-Login with admin/viewer roles)
+
+**Tech Stack (from CLAUDE.md):**
+- Jinja2 templates (server-side rendering)
+- HTMX for dynamic updates
+- Tailwind CSS via CDN
+- Chart.js for sensor graphs
+
+See `docs/DESIGN.md` for detailed web UI design and routes.
+
+### Other Possible Features:
+1. Password/API key hashing (security improvement)
+2. OTA firmware updates (test existing implementation)
+3. Multiple device support (already supported, need multiple ESP32s)
+4. Data export (CSV)
