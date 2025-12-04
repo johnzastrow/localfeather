@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }} - LocalFeather{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{{ url_for('web.devices_list') }}" class="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">&larr; Back to Devices</a>
+        <h1 class="text-3xl font-bold text-gray-900">{{ device.name }}</h1>
+        <p class="text-gray-500">{{ device.device_id }}</p>
+    </div>
+
+    <!-- Device Info Grid -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-8">
+        <!-- Status Card -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Status</h2>
+            <dl class="space-y-3">
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Status</dt>
+                    <dd>
+                        {% if device.is_online %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Online</span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Offline</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Approved</dt>
+                    <dd>
+                        {% if device.approved %}
+                        <span class="text-green-600">Yes</span>
+                        {% else %}
+                        <span class="text-yellow-600">Pending</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Firmware</dt>
+                    <dd class="text-sm text-gray-900">{{ device.firmware_version }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Last Seen</dt>
+                    <dd class="text-sm text-gray-900">
+                        {% if device.last_seen %}
+                        {{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Total Readings</dt>
+                    <dd class="text-sm text-gray-900">{{ device.total_readings }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Network Info Card -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Network</h2>
+            <dl class="space-y-3">
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">IP Address</dt>
+                    <dd class="text-sm text-gray-900">{{ device.ip_address or 'Unknown' }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">MAC Address</dt>
+                    <dd class="text-sm text-gray-900">{{ device.mac_address or 'Unknown' }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">WiFi SSID</dt>
+                    <dd class="text-sm text-gray-900">{{ device.wifi_ssid or 'Unknown' }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Signal Strength</dt>
+                    <dd class="text-sm text-gray-900">
+                        {% if device.signal_strength %}
+                        {{ device.signal_strength }} dBm
+                        {% else %}
+                        Unknown
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-500">Location</dt>
+                    <dd class="text-sm text-gray-900">{{ device.location or 'Not set' }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Sensor Readings Charts -->
+    {% if readings %}
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-medium text-gray-900 mb-4">Sensor Readings (Last 7 Days)</h2>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {% for sensor, data in readings.items() %}
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-2">{{ sensor | title }} ({{ data.unit }})</h3>
+                <canvas id="chart-{{ sensor }}" width="400" height="200"></canvas>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white shadow rounded-lg p-6">
+        <p class="text-gray-500 text-center">No readings available yet.</p>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    {% if current_user.is_admin() %}
+    <div class="mt-8 bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-medium text-gray-900 mb-4">Admin Actions</h2>
+        <div class="flex space-x-4">
+            {% if not device.approved %}
+            <form action="{{ url_for('web.device_approve', device_id=device.id) }}" method="POST">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    Approve Device
+                </button>
+            </form>
+            {% endif %}
+            <form action="{{ url_for('web.device_delete', device_id=device.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this device?');">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    Delete Device
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if readings %}
+<script>
+// Chart colors
+const colors = {
+    temperature: 'rgb(239, 68, 68)',
+    humidity: 'rgb(59, 130, 246)',
+    pressure: 'rgb(16, 185, 129)',
+    default: 'rgb(107, 114, 128)'
+};
+
+{% for sensor, data in readings.items() %}
+// {{ sensor }} chart
+{
+    const ctx = document.getElementById('chart-{{ sensor }}').getContext('2d');
+    const chartData = {{ data.data | tojson }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.map(d => new Date(d.timestamp).toLocaleString()),
+            datasets: [{
+                label: '{{ sensor | title }}',
+                data: chartData.map(d => d.value),
+                borderColor: colors['{{ sensor }}'] || colors.default,
+                backgroundColor: (colors['{{ sensor }}'] || colors.default).replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+{% endfor %}
+</script>
+{% endif %}
+{% endblock %}

@@ -47,6 +47,26 @@ class User(Base):
         """Check if user has admin role"""
         return self.role == 'admin'
 
+    # Flask-Login required methods
+    @property
+    def is_authenticated(self) -> bool:
+        """Always return True for authenticated users"""
+        return True
+
+    @property
+    def is_active(self) -> bool:
+        """Return whether user account is active"""
+        return self.active
+
+    @property
+    def is_anonymous(self) -> bool:
+        """Return False - this is not an anonymous user"""
+        return False
+
+    def get_id(self) -> str:
+        """Return user ID as string for Flask-Login"""
+        return str(self.id)
+
 
 class Device(Base):
     """ESP32 device information and configuration"""

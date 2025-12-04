@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Devices - LocalFeather{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Devices</h1>
+    </div>
+
+    <!-- Devices Table -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        {% if devices %}
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Firmware</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Network</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Seen</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Readings</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for device in devices %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">{{ device.name }}</div>
+                                <div class="text-sm text-gray-500">{{ device.device_id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if device.is_online %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Online
+                        </span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Offline
+                        </span>
+                        {% endif %}
+                        {% if not device.approved %}
+                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Pending
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ device.firmware_version or 'Unknown' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>{{ device.ip_address or 'Unknown' }}</div>
+                        <div class="text-xs text-gray-400">{{ device.wifi_ssid or 'Unknown' }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if device.last_seen %}
+                        {{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ device.total_readings }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="{{ url_for('web.device_detail', device_id=device.id) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                        {% if current_user.is_admin() %}
+                        {% if not device.approved %}
+                        <form action="{{ url_for('web.device_approve', device_id=device.id) }}" method="POST" class="inline ml-3">
+                            <button type="submit" class="text-green-600 hover:text-green-900">Approve</button>
+                        </form>
+                        {% endif %}
+                        <form action="{{ url_for('web.device_delete', device_id=device.id) }}" method="POST" class="inline ml-3" onsubmit="return confirm('Are you sure?');">
+                            <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-12">
+            <p class="text-gray-500">No devices registered yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -33,7 +33,8 @@
       "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor)",
       "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor --filter=default)",
       "Bash(ssh:*)",
-      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor --echo --filter send_on_enter)"
+      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor --echo --filter send_on_enter)",
+      "Bash(rsync:*)"
     ],
     "deny": [],
     "ask": []
