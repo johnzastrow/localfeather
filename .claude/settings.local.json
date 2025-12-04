@@ -29,7 +29,10 @@
       "Bash(systemctl status localfeather)",
       "Bash(journalctl:*)",
       "Bash(netstat:*)",
-      "Bash(ss:*)"
+      "Bash(ss:*)",
+      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor)",
+      "Bash(/mnt/c/Users/br8kw/.platformio/penv/Scripts/pio.exe device monitor --filter=default)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "ask": []

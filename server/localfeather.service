@@ -1,0 +1,22 @@
+[Unit]
+Description=Local Feather API Server
+After=network.target mariadb.service
+
+[Service]
+Type=notify
+User=jcz
+Group=jcz
+WorkingDirectory=/home/jcz/localfeather
+Environment="PATH=/home/jcz/localfeather/.venv/bin"
+ExecStart=/home/jcz/localfeather/.venv/bin/gunicorn \
+    --workers 4 \
+    --bind 0.0.0.0:5000 \
+    --timeout 120 \
+    --access-logfile /home/jcz/localfeather/logs/access.log \
+    --error-logfile /home/jcz/localfeather/logs/error.log \
+    'app:create_app()'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
