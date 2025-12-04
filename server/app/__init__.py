@@ -6,6 +6,8 @@ This module creates and configures the Flask application.
 
 from flask import Flask, redirect, url_for
 from flask_login import LoginManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import logging
 import os
 
@@ -59,7 +61,7 @@ def create_app(config_path: str = None) -> Flask:
         from app.models import User
         from sqlalchemy import select
 
-        with app.db.session() as session:
+        with app.db.session_scope() as session:
             stmt = select(User).where(User.id == int(user_id))
             user = session.execute(stmt).scalar_one_or_none()
             if user:
@@ -67,12 +69,24 @@ def create_app(config_path: str = None) -> Flask:
                 session.expunge(user)
             return user
 
+    # Initialize rate limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://",
+    )
+    app.limiter = limiter
+
     # Register blueprints
-    from app.api import api_bp
+    from app.api import api_bp, apply_rate_limits
     app.register_blueprint(api_bp, url_prefix='/api')
 
     from app.web import web_bp
     app.register_blueprint(web_bp)
+
+    # Apply rate limits after blueprints are registered
+    apply_rate_limits(limiter)
 
     # Health check endpoint
     @app.route('/health')

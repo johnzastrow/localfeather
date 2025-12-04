@@ -19,7 +19,7 @@ def devices_list():
     """List all devices"""
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).order_by(Device.created_at.desc())
         devices = session.execute(stmt).scalars().all()
 
@@ -49,7 +49,21 @@ def device_detail(device_id):
     """Device detail page with readings chart"""
     db = current_app.db
 
-    with db.session() as session:
+    # Get time range parameter (default: 7 days)
+    time_range = request.args.get('range', '7d')
+
+    # Parse time range
+    range_map = {
+        '1h': timedelta(hours=1),
+        '6h': timedelta(hours=6),
+        '24h': timedelta(days=1),
+        '7d': timedelta(days=7),
+        '30d': timedelta(days=30),
+        '90d': timedelta(days=90)
+    }
+    time_delta = range_map.get(time_range, timedelta(days=7))
+
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -57,26 +71,43 @@ def device_detail(device_id):
             flash('Device not found', 'error')
             return redirect(url_for('web.devices_list'))
 
-        # Get readings for last 7 days
-        week_ago = datetime.utcnow() - timedelta(days=7)
+        # Get readings for selected time range
+        start_time = datetime.utcnow() - time_delta
         stmt = select(Reading).where(
             Reading.device_id == device_id,
-            Reading.timestamp > week_ago
+            Reading.timestamp > start_time
         ).order_by(Reading.timestamp.asc())
         readings = session.execute(stmt).scalars().all()
 
-        # Group readings by sensor type
+        # Group readings by sensor type and calculate statistics
         readings_by_sensor = {}
         for reading in readings:
             if reading.sensor not in readings_by_sensor:
                 readings_by_sensor[reading.sensor] = {
                     'unit': reading.unit,
-                    'data': []
+                    'data': [],
+                    'values': []  # For statistics calculation
                 }
             readings_by_sensor[reading.sensor]['data'].append({
                 'timestamp': reading.timestamp.isoformat(),
                 'value': float(reading.value)
             })
+            readings_by_sensor[reading.sensor]['values'].append(float(reading.value))
+
+        # Calculate statistics for each sensor
+        for sensor_data in readings_by_sensor.values():
+            values = sensor_data['values']
+            if values:
+                sensor_data['stats'] = {
+                    'min': min(values),
+                    'max': max(values),
+                    'avg': sum(values) / len(values),
+                    'count': len(values)
+                }
+            else:
+                sensor_data['stats'] = None
+            # Remove temporary values array
+            del sensor_data['values']
 
         device_data = {
             'id': device.id,
@@ -98,7 +129,8 @@ def device_detail(device_id):
 
     return render_template('device_detail.html',
                           device=device_data,
-                          readings=readings_by_sensor)
+                          readings=readings_by_sensor,
+                          time_range=time_range)
 
 
 @web_bp.route('/devices/<int:device_id>/approve', methods=['POST'])
@@ -110,7 +142,7 @@ def device_approve(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -139,7 +171,7 @@ def device_rename(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -163,7 +195,7 @@ def device_delete(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -188,7 +220,7 @@ def device_regenerate_key(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -216,7 +248,7 @@ def device_update_location(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 
@@ -242,7 +274,7 @@ def device_update_notes(device_id):
 
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).where(Device.id == device_id)
         device = session.execute(stmt).scalar_one_or_none()
 

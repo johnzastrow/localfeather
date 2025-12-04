@@ -430,6 +430,12 @@ bool sendReadings(float temp, float humidity) {
     doc["device_id"] = config.deviceId;
     doc["api_key"] = strlen(config.apiKey) > 0 ? config.apiKey : ""; // Empty if not registered
 
+    // Add device metadata
+    doc["firmware_version"] = FIRMWARE_VERSION;
+    doc["mac_address"] = WiFi.macAddress();
+    doc["wifi_ssid"] = WiFi.SSID();
+    doc["signal_strength"] = WiFi.RSSI();
+
     JsonArray readings = doc.createNestedArray("readings");
 
     if (sensorAvailable) {

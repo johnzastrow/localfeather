@@ -7,6 +7,7 @@ Handles user login, logout, and session management.
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
+from datetime import datetime
 from app.web import web_bp
 from app.models import User
 from sqlalchemy import select
@@ -29,14 +30,16 @@ def login():
 
         # Query user from database
         db = current_app.db
-        with db.session() as session:
+        with db.session_scope() as session:
             stmt = select(User).where(User.username == username, User.active == True)
             user = session.execute(stmt).scalar_one_or_none()
 
             if user and check_password_hash(user.password_hash, password):
                 # Update last login
-                user.last_login = db.func.now()
-                session.commit()
+                user.last_login = datetime.utcnow()
+
+                # Detach user from session before login
+                session.expunge(user)
 
                 # Log in user
                 login_user(user, remember=remember)

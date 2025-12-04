@@ -15,7 +15,7 @@ def create_user(username, email, password, role='admin'):
     """Create a new user"""
     app = create_app()
 
-    with app.db.session() as session:
+    with app.db.session_scope() as session:
         # Check if user already exists
         stmt = select(User).where(User.username == username)
         existing_user = session.execute(stmt).scalar_one_or_none()

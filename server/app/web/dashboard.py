@@ -19,7 +19,7 @@ def dashboard():
     """Main dashboard page"""
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         # Get all devices with their latest readings
         stmt = select(Device).order_by(Device.last_seen.desc())
         devices = session.execute(stmt).scalars().all()
@@ -64,7 +64,7 @@ def dashboard_stats():
     """Get dashboard statistics (for HTMX updates)"""
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         # Count devices by status
         stmt = select(Device)
         devices = session.execute(stmt).scalars().all()
@@ -92,7 +92,7 @@ def dashboard_devices():
     """Get device list (for HTMX updates)"""
     db = current_app.db
 
-    with db.session() as session:
+    with db.session_scope() as session:
         stmt = select(Device).order_by(Device.last_seen.desc())
         devices = session.execute(stmt).scalars().all()
 

@@ -5,6 +5,7 @@ Handles sensor reading submissions from ESP32 devices.
 """
 
 from flask import request, jsonify, current_app
+from flask_bcrypt import generate_password_hash, check_password_hash
 from datetime import datetime
 from decimal import Decimal
 import secrets
@@ -14,10 +15,20 @@ from app.models import Device, Reading
 from app.database import get_db
 
 
+def get_rate_limit_key():
+    """Get rate limit key based on device_id if available, else IP address"""
+    data = request.get_json(silent=True)
+    if data and 'device_id' in data:
+        return f"device:{data['device_id']}"
+    return f"ip:{request.remote_addr}"
+
+
 @api_bp.route('/readings', methods=['POST'])
 def post_readings():
     """
     Receive sensor readings from ESP32 devices.
+
+    Rate limit: 60 requests per minute per device.
 
     Expected JSON payload:
     {
@@ -71,10 +82,16 @@ def post_readings():
                 if not api_key:
                     api_key = secrets.token_hex(32)
 
+                # Store plaintext key to return to device
+                plaintext_api_key = api_key
+
+                # Hash the API key for storage
+                hashed_api_key = generate_password_hash(api_key).decode('utf-8')
+
                 # Create new device
                 device = Device(
                     device_id=device_id,
-                    api_key=api_key,
+                    api_key=hashed_api_key,  # Store hashed key
                     approved=False,  # Requires admin approval
                     firmware_version=data.get('firmware_version'),
                     ip_address=request.remote_addr,
@@ -85,17 +102,17 @@ def post_readings():
 
                 current_app.logger.info(f"Device registered: {device_id} (approval required)")
 
-                # Return API key to device
+                # Return plaintext API key to device (only time it's sent)
                 return jsonify({
                     'status': 'registered',
                     'message': 'Device registered successfully. Awaiting approval.',
-                    'api_key': api_key,
+                    'api_key': plaintext_api_key,  # Return plaintext key
                     'approved': False,
                     'device_id': device_id
                 }), 200
 
             # Verify API key for existing devices
-            if device.api_key != api_key:
+            if not check_password_hash(device.api_key, api_key):
                 current_app.logger.warning(f"Invalid API key for device: {device_id}")
                 return jsonify({'error': 'Invalid API key'}), 401
 
@@ -115,6 +132,14 @@ def post_readings():
             # Update firmware version if provided
             if 'firmware_version' in data:
                 device.firmware_version = data['firmware_version']
+
+            # Update network information if provided
+            if 'mac_address' in data:
+                device.mac_address = data['mac_address']
+            if 'wifi_ssid' in data:
+                device.wifi_ssid = data['wifi_ssid']
+            if 'signal_strength' in data:
+                device.signal_strength = data['signal_strength']
 
             # Process readings
             readings_created = 0

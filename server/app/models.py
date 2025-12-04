@@ -85,11 +85,11 @@ class Device(Base):
         comment='User-friendly device name'
     )
     api_key: Mapped[str] = mapped_column(
-        String(64),
+        String(255),
         unique=True,
         nullable=False,
         index=True,
-        comment='API authentication key'
+        comment='API authentication key (bcrypt hashed)'
     )
     approved: Mapped[bool] = mapped_column(
         Boolean,
