@@ -50,7 +50,7 @@ HTTPClient http;
 struct Config {
     char serverUrl[128];
     char deviceId[32];
-    char apiKey[64];
+    char apiKey[128];  // Increased from 64 to 128 to handle 64-char hex strings + null terminator
     int readingInterval;
 } config;
 
@@ -62,6 +62,7 @@ bool sensorAvailable = false;
 
 // Function declarations
 void setupWiFi();
+void saveWifiCallback();
 void loadConfig();
 void saveConfig();
 void setupSensor();
@@ -183,20 +184,64 @@ void loop() {
     delay(100); // Small delay to prevent tight loop
 }
 
+// Global WiFiManager parameters (need to be accessible in callback)
+WiFiManagerParameter* custom_server_ptr = nullptr;
+WiFiManagerParameter* custom_device_id_ptr = nullptr;
+WiFiManagerParameter* custom_api_key_ptr = nullptr;
+
+// Callback when WiFiManager saves config
+void saveWifiCallback() {
+    Serial.println("WiFiManager: Config saved callback triggered");
+
+    // Get values from WiFiManager parameters
+    if (custom_server_ptr) {
+        strncpy(config.serverUrl, custom_server_ptr->getValue(), sizeof(config.serverUrl));
+        config.serverUrl[sizeof(config.serverUrl) - 1] = '\0';
+    }
+
+    if (custom_device_id_ptr) {
+        strncpy(config.deviceId, custom_device_id_ptr->getValue(), sizeof(config.deviceId));
+        config.deviceId[sizeof(config.deviceId) - 1] = '\0';
+    }
+
+    if (custom_api_key_ptr) {
+        strncpy(config.apiKey, custom_api_key_ptr->getValue(), sizeof(config.apiKey));
+        config.apiKey[sizeof(config.apiKey) - 1] = '\0';
+    }
+
+    // Use MAC-based device ID if none provided
+    if (strlen(config.deviceId) == 0) {
+        String devId = getDeviceId();
+        strncpy(config.deviceId, devId.c_str(), sizeof(config.deviceId));
+    }
+
+    // Save to NVS
+    saveConfig();
+    Serial.println("✓ Configuration saved to NVS");
+}
+
 /**
  * Setup WiFi using WiFiManager
  */
 void setupWiFi() {
     Serial.println("Setting up WiFi...");
 
-    // Set custom parameters for config portal
-    WiFiManagerParameter custom_server("server", "Server URL", config.serverUrl, 128);
-    WiFiManagerParameter custom_device_id("device_id", "Device ID", config.deviceId, 32);
-    WiFiManagerParameter custom_api_key("api_key", "API Key (leave blank for new device)", config.apiKey, 64);
+    // Set custom parameters for config portal (create on heap so they persist for callback)
+    static WiFiManagerParameter custom_server("server", "Server URL", config.serverUrl, 128);
+    static WiFiManagerParameter custom_device_id("device_id", "Device ID", config.deviceId, 32);
+    static WiFiManagerParameter custom_api_key("api_key", "API Key (leave blank for new device)", config.apiKey, 128);
+
+    // Store pointers for callback
+    custom_server_ptr = &custom_server;
+    custom_device_id_ptr = &custom_device_id;
+    custom_api_key_ptr = &custom_api_key;
 
     wifiManager.addParameter(&custom_server);
     wifiManager.addParameter(&custom_device_id);
     wifiManager.addParameter(&custom_api_key);
+
+    // Set save config callback (called BEFORE reboot)
+    wifiManager.setSaveConfigCallback(saveWifiCallback);
 
     // Set timeout for config portal
     wifiManager.setConfigPortalTimeout(300); // 5 minutes
