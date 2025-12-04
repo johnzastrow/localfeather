@@ -107,7 +107,9 @@ void setup() {
     // Initial LED pattern: 3 quick blinks = ready
     blinkLED(3, 200);
 
-    Serial.println("\n✓ Setup complete - entering main loop\n");
+    Serial.println("\n✓ Setup complete - entering main loop");
+    Serial.printf("📟 Device ID: %s\n", config.deviceId);
+    Serial.printf("🌐 Server: %s\n\n", config.serverUrl);
 }
 
 /**
@@ -397,7 +399,7 @@ bool sendReadings(float temp, float humidity) {
         Serial.println("✓ Data sent successfully");
 
         // Parse response to get server time and update interval
-        StaticJsonDocument<256> responseDoc;
+        StaticJsonDocument<512> responseDoc;  // Increased from 256 to 512
         DeserializationError error = deserializeJson(responseDoc, response);
 
         if (!error) {
@@ -405,10 +407,11 @@ bool sendReadings(float temp, float humidity) {
                 // New device registration - save API key
                 const char* newApiKey = responseDoc["api_key"];
                 strncpy(config.apiKey, newApiKey, sizeof(config.apiKey));
+                config.apiKey[sizeof(config.apiKey) - 1] = '\0';  // Ensure null termination
                 saveConfig();
                 Serial.println("✓ Device registered - API key saved");
+                Serial.printf("   API key: %s\n", config.apiKey);
             }
-
             if (responseDoc.containsKey("server_time")) {
                 // Sync time with server
                 time_t serverTime = responseDoc["server_time"];
@@ -425,6 +428,8 @@ bool sendReadings(float temp, float humidity) {
                     Serial.printf("✓ Reading interval updated: %d seconds\n", newInterval);
                 }
             }
+        } else {
+            Serial.printf("⚠ JSON parse error: %s\n", error.c_str());
         }
 
         success = true;

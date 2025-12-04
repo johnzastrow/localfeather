@@ -230,6 +230,62 @@ Failed to connect
 - Check ESP32 MAC address in serial monitor
 - Add to router's allowed devices list
 
+### Problem: "No API key found" or "401 Invalid API key" errors
+
+**Symptoms**: Serial monitor shows:
+```
+No API key found - registering with server...
+Response code: 401
+❌ Invalid API key - device may need re-registration
+```
+
+**Diagnosis**:
+
+First, find your device ID in the serial output:
+```
+📟 Device ID: esp32-3323b0
+```
+
+Then SSH into your server and check the device registration:
+```bash
+ssh user@192.168.1.234
+mysql -u localfeather -p localfeather_db \
+  -e "SELECT device_id, api_key, approved, last_seen FROM devices WHERE device_id='esp32-3323b0';"
+```
+
+**Solutions by scenario**:
+
+**1. Device not in database** (query returns no rows):
+- Server may be refusing registration requests
+- Check server logs: `journalctl -u localfeather -n 50` or `docker logs localfeather-web-1`
+- Ensure `/api/readings` endpoint is accessible
+- Test manually: `curl http://192.168.1.234:5000/api/health`
+
+**2. Device registered but `approved=0`**:
+- New devices require manual approval for security
+- Approve via web UI: Dashboard → Devices → esp32-3323b0 → Approve
+- Or approve via database:
+  ```bash
+  mysql -u localfeather -p localfeather_db \
+    -e "UPDATE devices SET approved=1 WHERE device_id='esp32-3323b0';"
+  ```
+
+**3. Device approved but API key mismatch**:
+- The API key in the database doesn't match what's stored on the ESP32
+- **Option A**: Regenerate and manually set on ESP32 (see below)
+- **Option B**: Reset device and let it re-register
+
+**Manually setting API key on ESP32**:
+- Generate new API key in web UI: Devices → esp32-3323b0 → Regenerate Key
+- Copy the displayed key (e.g., `abc123xyz456`)
+- The ESP32 firmware currently doesn't support manual key entry, so you need to either:
+  - Use the web UI to trigger key sync (future feature), OR
+  - Erase ESP32 NVS and let it re-register:
+    ```bash
+    pio run --target erase
+    pio run --target upload
+    ```
+
 ### Problem: Device registers but shows "offline"
 
 **Symptoms**: Device appears in web UI but status is always offline.
@@ -638,6 +694,75 @@ echo "Debug report saved to debug.txt"
 ---
 
 ## FAQ
+
+**Q: How do I erase the ESP32's stored configuration and start fresh?**
+A: To completely wipe the ESP32's NVS (non-volatile storage) including saved WiFi credentials, API keys, and server settings:
+
+```bash
+cd firmware
+pio run --target erase
+pio run --target upload
+```
+
+**If you get "port is busy" or "Access is denied" errors:**
+
+The serial port is being used by your serial monitor or another program. Try these solutions in order:
+
+1. **Close your serial monitor** - The most common cause. Close any terminal/window showing ESP32 serial output.
+
+2. **Kill PlatformIO monitor processes:**
+   ```powershell
+   # Windows PowerShell
+   taskkill /F /IM "pio.exe" /T
+
+   # Or kill Python processes
+   taskkill /F /IM python.exe /T
+   ```
+
+3. **Close VS Code entirely** - If using PlatformIO extension in VS Code, it may hold the port.
+
+4. **Unplug and replug the USB cable** - This forces the port to release. Note: Windows might assign a different COM port number (check `pio device list`).
+
+5. **Find and kill the specific process:**
+   ```powershell
+   # Windows PowerShell
+   Get-Process | Where-Object {$_.MainWindowTitle -like "*COM9*"} | Stop-Process -Force
+   ```
+
+After erasing, the ESP32 will boot as if brand new and need to be reconfigured through the WiFiManager portal.
+
+**Q: I see "Device registered successfully. Awaiting approval." - what do I do?**
+A: This is normal for new devices. The device registered successfully and received an API key, but it needs admin approval before it can send data.
+
+To approve the device:
+```bash
+# Via database
+mysql -u localfeather -p localfeather_db \
+  -e "UPDATE devices SET approved=1 WHERE device_id='esp32-XXXXXX';"
+
+# Or via web UI (if available)
+Dashboard → Devices → [your device] → Approve
+```
+
+After approval, the device will start sending readings successfully on the next POST request.
+
+**Q: How do I find my ESP32's device ID?**
+A: The device ID is printed in the serial monitor after setup completes. Look for:
+```
+✓ Setup complete - entering main loop
+📟 Device ID: esp32-a1b2c3
+🌐 Server: http://192.168.1.234:5000
+```
+The device ID format is `esp32-XXXXXX` where XXXXXX are the last 3 bytes of the MAC address. If you don't see it (using older firmware), press the RESET button on your ESP32 to reboot, or check the early boot "Configuration" section in the serial output.
+
+**Q: I'm getting "Table 'localfeather.Devices' doesn't exist" errors**
+A: Table names are **case-sensitive** on Linux/Mac but not on Windows. The correct table names are lowercase:
+- `devices` (not `Devices`)
+- `sensors` (not `Sensors`)
+- `readings` (not `Readings`)
+- `users` (not `Users`)
+
+If you need to check your table names: `SHOW TABLES;`
 
 **Q: Can I use PostgreSQL instead of MariaDB?**
 A: Yes, change DATABASE_URL in .env to postgresql:// format. Same migrations work.

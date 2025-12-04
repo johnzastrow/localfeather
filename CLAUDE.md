@@ -511,6 +511,16 @@ When working in this codebase:
 - Rate limit API endpoints
 - Log security events (failed auth, rate limits)
 
+**Troubleshooting Documentation Workflow**:
+- When a user asks a question, answer it clearly and completely
+- After answering, check if the question/answer exists in `docs/TROUBLESHOOTING.md`
+- If the answer is NOT in the troubleshooting guide:
+  - Add it to the appropriate section (Installation, Server, ESP32, Database, Network, etc.)
+  - If no section fits, add it to the FAQ section at the bottom
+  - Follow the existing format and style
+  - Keep answers concise but complete with code examples where helpful
+- This ensures the knowledge base grows organically from real user questions
+
 ## Mermaid Diagram Theme
 
 Use Forest Dark theme:

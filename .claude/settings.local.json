@@ -24,7 +24,12 @@
       "Bash(pip freeze:*)",
       "Bash(uv pip freeze:*)",
       "Bash(requirements.txt)",
-      "Bash(mysql:*)"
+      "Bash(mysql:*)",
+      "Bash(docker logs:*)",
+      "Bash(systemctl status localfeather)",
+      "Bash(journalctl:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)"
     ],
     "deny": [],
     "ask": []
